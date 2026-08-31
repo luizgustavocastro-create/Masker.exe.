@@ -34,6 +34,7 @@ def _ensure_key():
             ],
             capture_output=True,
             check=False,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
     else:
         key = KEY_FILE.read_bytes()

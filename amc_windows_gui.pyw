@@ -62,6 +62,7 @@ def install_startup_task():
         text=True,
         capture_output=True,
         check=False,
+        creationflags=subprocess.CREATE_NO_WINDOW,
     )
     if result.returncode:
         raise RuntimeError((result.stderr or result.stdout or "Falha ao criar a tarefa.").strip())
@@ -70,6 +71,7 @@ def install_startup_task():
         text=True,
         capture_output=True,
         check=False,
+        creationflags=subprocess.CREATE_NO_WINDOW,
     )
     if verification.returncode:
         raise RuntimeError("A tarefa foi criada, mas nao pode ser confirmada.")

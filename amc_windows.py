@@ -52,6 +52,7 @@ def run_powershell(script, capture=True):
         check=False,
         text=True,
         capture_output=capture,
+        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
     )
     if result.returncode:
         detail = (result.stderr or result.stdout or "Falha desconhecida").strip()
