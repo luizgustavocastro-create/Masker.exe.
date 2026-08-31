@@ -9,7 +9,10 @@ import sys
 import threading
 import time
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox
+
+import customtkinter as ctk
+from PIL import Image
 
 import amc_windows
 import masker_secure_state
@@ -128,29 +131,13 @@ class MacChangerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Masker — Network Privacy")
-        self.root.geometry("760x610")
-        self.root.minsize(700, 570)
-        self.root.configure(bg="#0b0d10")
+        self.root.geometry("980x650")
+        self.root.minsize(900, 610)
+        self.root.configure(fg_color="#090a0c")
         resource_root = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
         icon_path = os.path.join(resource_root, "masker.ico")
         if os.path.exists(icon_path):
             self.root.iconbitmap(icon_path)
-
-        style = ttk.Style()
-        style.theme_use("clam")
-        style.configure("App.TFrame", background="#0b0d10")
-        style.configure("Card.TFrame", background="#15181d")
-        style.configure("Title.TLabel", background="#0b0d10", foreground="#ffffff", font=("Segoe UI Semibold", 24))
-        style.configure("Subtitle.TLabel", background="#0b0d10", foreground="#8f98a6", font=("Segoe UI", 10))
-        style.configure("CardTitle.TLabel", background="#15181d", foreground="#8f98a6", font=("Segoe UI Semibold", 9))
-        style.configure("Value.TLabel", background="#15181d", foreground="#ffffff", font=("Consolas", 14, "bold"))
-        style.configure("Body.TLabel", background="#15181d", foreground="#c9d0da", font=("Segoe UI", 10))
-        style.configure("Primary.TButton", font=("Segoe UI Semibold", 10), padding=(18, 11), background="#ffffff", foreground="#0b0d10")
-        style.map("Primary.TButton", background=[("active", "#dfe4ea"), ("disabled", "#555b63")])
-        style.configure("Secondary.TButton", font=("Segoe UI", 10), padding=(15, 10), background="#242932", foreground="#ffffff")
-        style.map("Secondary.TButton", background=[("active", "#323945")])
-        style.configure("App.TCombobox", fieldbackground="#20242b", background="#20242b", foreground="#ffffff", arrowcolor="#ffffff", padding=8)
-        style.configure("App.TEntry", fieldbackground="#20242b", foreground="#ffffff", insertcolor="#ffffff", padding=9)
 
         self.adapters = {}
         self.adapter_name = tk.StringVar()
@@ -161,61 +148,91 @@ class MacChangerApp:
         self.protection_detail = tk.StringVar(value="Reading network configuration...")
         self.security_value = tk.StringVar(value="AES-256-GCM  •  STARTUP CHECKING")
 
-        frame = ttk.Frame(root, style="App.TFrame", padding=(34, 28))
-        frame.pack(fill="both", expand=True)
-        frame.columnconfigure(0, weight=1)
+        shell = ctk.CTkFrame(root, fg_color="#090a0c", corner_radius=0)
+        shell.pack(fill="both", expand=True)
+        shell.grid_columnconfigure(1, weight=1)
+        shell.grid_rowconfigure(0, weight=1)
 
-        header = ttk.Frame(frame, style="App.TFrame")
-        header.grid(row=0, column=0, sticky="ew", pady=(0, 22))
-        ttk.Label(header, text="MASKER", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(header, text="Local network identity control", style="Subtitle.TLabel").pack(anchor="w", pady=(2, 0))
+        sidebar = ctk.CTkFrame(shell, width=216, fg_color="#111317", corner_radius=0)
+        sidebar.grid(row=0, column=0, sticky="nsew")
+        sidebar.grid_propagate(False)
+        if os.path.exists(icon_path):
+            logo_image = ctk.CTkImage(Image.open(icon_path), size=(42, 42))
+            logo = ctk.CTkLabel(sidebar, text="", image=logo_image)
+            logo.image = logo_image
+            logo.pack(anchor="w", padx=28, pady=(30, 8))
+        ctk.CTkLabel(sidebar, text="MASKER", text_color="#ffffff", font=ctk.CTkFont("Segoe UI", 21, "bold")).pack(anchor="w", padx=28)
+        ctk.CTkLabel(sidebar, text="NETWORK PRIVACY", text_color="#747b87", font=ctk.CTkFont("Segoe UI", 9, "bold")).pack(anchor="w", padx=28, pady=(2, 34))
+        ctk.CTkButton(sidebar, text="Overview", anchor="w", height=42, corner_radius=10, fg_color="#ffffff", hover_color="#e4e7eb", text_color="#090a0c", font=ctk.CTkFont("Segoe UI", 11, "bold"), command=lambda: None).pack(fill="x", padx=18)
+        ctk.CTkButton(sidebar, text="Network identity", anchor="w", height=42, corner_radius=10, fg_color="transparent", hover_color="#1c2026", text_color="#9ca3ad", command=lambda: None).pack(fill="x", padx=18, pady=(7, 0))
+        ctk.CTkLabel(sidebar, text="LOCAL-ONLY CONTROL\nNo cloud connection", justify="left", text_color="#666d78", font=ctk.CTkFont("Segoe UI", 9)).pack(side="bottom", anchor="w", padx=28, pady=26)
 
-        status_card = ttk.Frame(frame, style="Card.TFrame", padding=(22, 19))
-        status_card.grid(row=1, column=0, sticky="ew", pady=(0, 14))
-        status_card.columnconfigure(1, weight=1)
-        self.status_icon = tk.Canvas(status_card, width=44, height=44, bg="#15181d", highlightthickness=0)
-        self.status_icon.grid(row=0, column=0, rowspan=2, padx=(0, 15))
-        self.status_dot = self.status_icon.create_oval(7, 7, 37, 37, fill="#68707c", outline="")
-        self.status_check = self.status_icon.create_text(22, 22, text="✓", fill="#0b0d10", font=("Segoe UI", 15, "bold"))
-        ttk.Label(status_card, textvariable=self.protection_title, background="#15181d", foreground="#ffffff", font=("Segoe UI Semibold", 13)).grid(row=0, column=1, sticky="sw")
-        ttk.Label(status_card, textvariable=self.protection_detail, style="Body.TLabel").grid(row=1, column=1, sticky="nw", pady=(3, 0))
+        content = ctk.CTkScrollableFrame(shell, fg_color="#090a0c", corner_radius=0)
+        content.grid(row=0, column=1, sticky="nsew")
+        content.grid_columnconfigure(0, weight=1)
 
-        network_card = ttk.Frame(frame, style="Card.TFrame", padding=(22, 18))
-        network_card.grid(row=2, column=0, sticky="ew", pady=(0, 14))
-        network_card.columnconfigure(0, weight=1)
-        ttk.Label(network_card, text="NETWORK ADAPTER", style="CardTitle.TLabel").grid(row=0, column=0, sticky="w")
-        self.adapter_box = ttk.Combobox(
-            network_card, textvariable=self.adapter_name, state="readonly", style="App.TCombobox"
-        )
-        self.adapter_box.grid(row=1, column=0, sticky="ew", pady=(8, 15))
-        self.adapter_box.bind("<<ComboboxSelected>>", self.on_adapter_selected)
-        self.refresh_button = ttk.Button(network_card, text="Refresh", style="Secondary.TButton", command=self.refresh_adapters)
-        self.refresh_button.grid(row=1, column=1, padx=(10, 0), pady=(8, 15))
-        ttk.Label(network_card, text="CURRENT MAC", style="CardTitle.TLabel").grid(row=2, column=0, sticky="w")
-        ttk.Label(network_card, textvariable=self.current_value, style="Value.TLabel").grid(row=3, column=0, sticky="w", pady=(5, 0))
+        header = ctk.CTkFrame(content, fg_color="transparent")
+        header.grid(row=0, column=0, sticky="ew", padx=34, pady=(28, 22))
+        ctk.CTkLabel(header, text="Network identity", text_color="#ffffff", font=ctk.CTkFont("Segoe UI", 26, "bold")).pack(anchor="w")
+        ctk.CTkLabel(header, text="Control the hardware address presented to your local network.", text_color="#8b929d", font=ctk.CTkFont("Segoe UI", 11)).pack(anchor="w", pady=(4, 0))
 
-        action_card = ttk.Frame(frame, style="Card.TFrame", padding=(22, 18))
-        action_card.grid(row=3, column=0, sticky="ew", pady=(0, 14))
-        action_card.columnconfigure(0, weight=1)
-        ttk.Label(action_card, text="NEW RANDOMIZED MAC", style="CardTitle.TLabel").grid(row=0, column=0, sticky="w")
-        self.mac_entry = ttk.Entry(action_card, textvariable=self.mac_value, style="App.TEntry")
-        self.mac_entry.grid(row=1, column=0, sticky="ew", pady=(8, 14))
-        self.generate_button = ttk.Button(action_card, text="Generate", style="Secondary.TButton", command=self.generate_mac)
-        self.generate_button.grid(row=1, column=1, padx=(10, 0), pady=(8, 14))
+        hero = ctk.CTkFrame(content, fg_color="#15181d", border_width=1, border_color="#242830", corner_radius=18)
+        hero.grid(row=1, column=0, sticky="ew", padx=34, pady=(0, 14))
+        hero.grid_columnconfigure(1, weight=1)
+        self.status_icon = tk.Canvas(hero, width=64, height=64, bg="#15181d", highlightthickness=0)
+        self.status_icon.grid(row=0, column=0, rowspan=2, padx=(24, 18), pady=24)
+        self.status_dot = self.status_icon.create_oval(7, 7, 57, 57, fill="#68707c", outline="")
+        self.status_check = self.status_icon.create_text(32, 32, text="✓", fill="#0b0d10", font=("Segoe UI", 20, "bold"))
+        ctk.CTkLabel(hero, textvariable=self.protection_title, text_color="#ffffff", font=ctk.CTkFont("Segoe UI", 16, "bold")).grid(row=0, column=1, sticky="sw", pady=(24, 0))
+        ctk.CTkLabel(hero, textvariable=self.protection_detail, text_color="#9ba2ad", font=ctk.CTkFont("Segoe UI", 10)).grid(row=1, column=1, sticky="nw", pady=(3, 24))
+        self.refresh_button = ctk.CTkButton(hero, text="Refresh status", width=118, height=36, corner_radius=9, fg_color="#242932", hover_color="#313741", command=self.refresh_adapters)
+        self.refresh_button.grid(row=0, column=2, rowspan=2, padx=24)
 
-        button_frame = ttk.Frame(action_card, style="Card.TFrame")
-        button_frame.grid(row=2, column=0, columnspan=2, sticky="ew")
-        self.change_button = ttk.Button(button_frame, text="Activate Masking", style="Primary.TButton", command=self.change_mac)
-        self.change_button.pack(side="left", fill="x", expand=True)
-        self.restore_button = ttk.Button(
-            button_frame, text="Restore Original", style="Secondary.TButton", command=self.restore_mac
-        )
-        self.restore_button.pack(side="left", fill="x", expand=True, padx=(10, 0))
+        metrics = ctk.CTkFrame(content, fg_color="transparent")
+        metrics.grid(row=2, column=0, sticky="ew", padx=34, pady=(0, 14))
+        metrics.grid_columnconfigure((0, 1, 2), weight=1, uniform="metric")
 
-        footer = ttk.Frame(frame, style="App.TFrame")
-        footer.grid(row=4, column=0, sticky="ew")
-        ttk.Label(footer, textvariable=self.security_value, style="Subtitle.TLabel").pack(anchor="w")
-        ttk.Label(footer, textvariable=self.status_value, style="Subtitle.TLabel", wraplength=680).pack(anchor="w", pady=(5, 0))
+        mac_card = ctk.CTkFrame(metrics, fg_color="#15181d", border_width=1, border_color="#242830", corner_radius=16)
+        mac_card.grid(row=0, column=0, sticky="nsew", padx=(0, 7))
+        ctk.CTkLabel(mac_card, text="CURRENT MAC", text_color="#747d89", font=ctk.CTkFont("Segoe UI", 9, "bold")).pack(anchor="w", padx=18, pady=(17, 7))
+        ctk.CTkLabel(mac_card, textvariable=self.current_value, text_color="#ffffff", font=ctk.CTkFont("Consolas", 13, "bold")).pack(anchor="w", padx=18, pady=(0, 18))
+
+        adapter_card = ctk.CTkFrame(metrics, fg_color="#15181d", border_width=1, border_color="#242830", corner_radius=16)
+        adapter_card.grid(row=0, column=1, sticky="nsew", padx=7)
+        ctk.CTkLabel(adapter_card, text="ADAPTER", text_color="#747d89", font=ctk.CTkFont("Segoe UI", 9, "bold")).pack(anchor="w", padx=18, pady=(17, 7))
+        ctk.CTkLabel(adapter_card, textvariable=self.adapter_name, text_color="#ffffff", font=ctk.CTkFont("Segoe UI", 13, "bold")).pack(anchor="w", padx=18, pady=(0, 18))
+
+        crypto_card = ctk.CTkFrame(metrics, fg_color="#15181d", border_width=1, border_color="#242830", corner_radius=16)
+        crypto_card.grid(row=0, column=2, sticky="nsew", padx=(7, 0))
+        ctk.CTkLabel(crypto_card, text="LOCAL STATE", text_color="#747d89", font=ctk.CTkFont("Segoe UI", 9, "bold")).pack(anchor="w", padx=18, pady=(17, 7))
+        ctk.CTkLabel(crypto_card, text="AES-256-GCM", text_color="#ffffff", font=ctk.CTkFont("Segoe UI", 13, "bold")).pack(anchor="w", padx=18, pady=(0, 18))
+
+        control = ctk.CTkFrame(content, fg_color="#15181d", border_width=1, border_color="#242830", corner_radius=18)
+        control.grid(row=3, column=0, sticky="ew", padx=34, pady=(0, 14))
+        control.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(control, text="Masking control", text_color="#ffffff", font=ctk.CTkFont("Segoe UI", 15, "bold")).grid(row=0, column=0, columnspan=2, sticky="w", padx=22, pady=(20, 3))
+        ctk.CTkLabel(control, text="Select an adapter and apply a locally administered unicast address.", text_color="#858d98", font=ctk.CTkFont("Segoe UI", 10)).grid(row=1, column=0, columnspan=2, sticky="w", padx=22, pady=(0, 17))
+
+        self.adapter_box = ctk.CTkComboBox(control, variable=self.adapter_name, values=[], height=42, corner_radius=10, fg_color="#20242a", border_color="#303640", button_color="#303640", button_hover_color="#3b424d", dropdown_fg_color="#20242a", command=self.on_adapter_selected)
+        self.adapter_box.grid(row=2, column=0, sticky="ew", padx=(22, 8), pady=(0, 12))
+        self.generate_button = ctk.CTkButton(control, text="Generate new", width=128, height=42, corner_radius=10, fg_color="#262b33", hover_color="#343a44", command=self.generate_mac)
+        self.generate_button.grid(row=2, column=1, padx=(8, 22), pady=(0, 12))
+
+        self.mac_entry = ctk.CTkEntry(control, textvariable=self.mac_value, height=44, corner_radius=10, fg_color="#20242a", border_color="#303640", font=ctk.CTkFont("Consolas", 12))
+        self.mac_entry.grid(row=3, column=0, columnspan=2, sticky="ew", padx=22, pady=(0, 16))
+
+        button_frame = ctk.CTkFrame(control, fg_color="transparent")
+        button_frame.grid(row=4, column=0, columnspan=2, sticky="ew", padx=22, pady=(0, 22))
+        button_frame.grid_columnconfigure((0, 1), weight=1)
+        self.change_button = ctk.CTkButton(button_frame, text="Activate masking", height=46, corner_radius=11, fg_color="#ffffff", hover_color="#e2e5e9", text_color="#090a0c", font=ctk.CTkFont("Segoe UI", 11, "bold"), command=self.change_mac)
+        self.change_button.grid(row=0, column=0, sticky="ew", padx=(0, 7))
+        self.restore_button = ctk.CTkButton(button_frame, text="Restore original", height=46, corner_radius=11, fg_color="#252a32", hover_color="#343b45", font=ctk.CTkFont("Segoe UI", 11), command=self.restore_mac)
+        self.restore_button.grid(row=0, column=1, sticky="ew", padx=(7, 0))
+
+        footer = ctk.CTkFrame(content, fg_color="transparent")
+        footer.grid(row=4, column=0, sticky="ew", padx=34, pady=(0, 26))
+        ctk.CTkLabel(footer, textvariable=self.security_value, text_color="#747b86", font=ctk.CTkFont("Segoe UI", 9, "bold")).pack(anchor="w")
+        ctk.CTkLabel(footer, textvariable=self.status_value, text_color="#747b86", font=ctk.CTkFont("Segoe UI", 9), wraplength=650, justify="left").pack(anchor="w", pady=(4, 0))
 
         try:
             secure_state = masker_secure_state.load_state()
@@ -231,7 +248,7 @@ class MacChangerApp:
         self.generate_button.configure(state=state)
         self.change_button.configure(state=state)
         self.restore_button.configure(state=state)
-        self.adapter_box.configure(state="disabled" if busy else "readonly")
+        self.adapter_box.configure(state="disabled" if busy else "normal")
         if message:
             self.status_value.set(message)
 
@@ -275,7 +292,7 @@ class MacChangerApp:
         previous = self.adapter_name.get()
         self.adapters = {item.get("Name", ""): item for item in adapters if item.get("Name")}
         names = list(self.adapters)
-        self.adapter_box["values"] = names
+        self.adapter_box.configure(values=names)
         if previous in self.adapters:
             self.adapter_name.set(previous)
         elif names:
@@ -360,7 +377,8 @@ def main():
     if "--startup-randomize" in sys.argv:
         raise SystemExit(startup_randomize())
 
-    root = tk.Tk()
+    ctk.set_appearance_mode("dark")
+    root = ctk.CTk()
     root.withdraw()
     if not relaunch_as_admin():
         root.destroy()
