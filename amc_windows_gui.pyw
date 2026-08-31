@@ -378,12 +378,11 @@ def main():
         raise SystemExit(startup_randomize())
 
     ctk.set_appearance_mode("dark")
-    root = ctk.CTk()
-    root.withdraw()
     if not relaunch_as_admin():
-        root.destroy()
         return
+    root = ctk.CTk()
     if "--install-startup" in sys.argv:
+        root.withdraw()
         try:
             install_startup_task()
         except Exception as error:
@@ -395,8 +394,9 @@ def main():
             )
         root.destroy()
         return
-    root.deiconify()
     MacChangerApp(root)
+    root.lift()
+    root.focus_force()
     root.mainloop()
 
 
