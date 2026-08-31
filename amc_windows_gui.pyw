@@ -127,64 +127,102 @@ def startup_randomize():
 class MacChangerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Masker")
-        self.root.geometry("620x390")
-        self.root.minsize(560, 360)
+        self.root.title("Masker — Network Privacy")
+        self.root.geometry("760x610")
+        self.root.minsize(700, 570)
+        self.root.configure(bg="#0b0d10")
         resource_root = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
         icon_path = os.path.join(resource_root, "masker.ico")
         if os.path.exists(icon_path):
             self.root.iconbitmap(icon_path)
+
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure("App.TFrame", background="#0b0d10")
+        style.configure("Card.TFrame", background="#15181d")
+        style.configure("Title.TLabel", background="#0b0d10", foreground="#ffffff", font=("Segoe UI Semibold", 24))
+        style.configure("Subtitle.TLabel", background="#0b0d10", foreground="#8f98a6", font=("Segoe UI", 10))
+        style.configure("CardTitle.TLabel", background="#15181d", foreground="#8f98a6", font=("Segoe UI Semibold", 9))
+        style.configure("Value.TLabel", background="#15181d", foreground="#ffffff", font=("Consolas", 14, "bold"))
+        style.configure("Body.TLabel", background="#15181d", foreground="#c9d0da", font=("Segoe UI", 10))
+        style.configure("Primary.TButton", font=("Segoe UI Semibold", 10), padding=(18, 11), background="#ffffff", foreground="#0b0d10")
+        style.map("Primary.TButton", background=[("active", "#dfe4ea"), ("disabled", "#555b63")])
+        style.configure("Secondary.TButton", font=("Segoe UI", 10), padding=(15, 10), background="#242932", foreground="#ffffff")
+        style.map("Secondary.TButton", background=[("active", "#323945")])
+        style.configure("App.TCombobox", fieldbackground="#20242b", background="#20242b", foreground="#ffffff", arrowcolor="#ffffff", padding=8)
+        style.configure("App.TEntry", fieldbackground="#20242b", foreground="#ffffff", insertcolor="#ffffff", padding=9)
 
         self.adapters = {}
         self.adapter_name = tk.StringVar()
         self.mac_value = tk.StringVar(value=amc_windows.format_mac(amc_windows.random_mac()))
         self.current_value = tk.StringVar(value="-")
         self.status_value = tk.StringVar(value="Carregando adaptadores...")
+        self.protection_title = tk.StringVar(value="CHECKING STATUS")
+        self.protection_detail = tk.StringVar(value="Reading network configuration...")
+        self.security_value = tk.StringVar(value="AES-256-GCM  •  STARTUP CHECKING")
 
-        frame = ttk.Frame(root, padding=22)
+        frame = ttk.Frame(root, style="App.TFrame", padding=(34, 28))
         frame.pack(fill="both", expand=True)
+        frame.columnconfigure(0, weight=1)
 
-        ttk.Label(frame, text="Adaptador de rede").grid(row=0, column=0, sticky="w")
+        header = ttk.Frame(frame, style="App.TFrame")
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 22))
+        ttk.Label(header, text="MASKER", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(header, text="Local network identity control", style="Subtitle.TLabel").pack(anchor="w", pady=(2, 0))
+
+        status_card = ttk.Frame(frame, style="Card.TFrame", padding=(22, 19))
+        status_card.grid(row=1, column=0, sticky="ew", pady=(0, 14))
+        status_card.columnconfigure(1, weight=1)
+        self.status_icon = tk.Canvas(status_card, width=44, height=44, bg="#15181d", highlightthickness=0)
+        self.status_icon.grid(row=0, column=0, rowspan=2, padx=(0, 15))
+        self.status_dot = self.status_icon.create_oval(7, 7, 37, 37, fill="#68707c", outline="")
+        self.status_check = self.status_icon.create_text(22, 22, text="✓", fill="#0b0d10", font=("Segoe UI", 15, "bold"))
+        ttk.Label(status_card, textvariable=self.protection_title, background="#15181d", foreground="#ffffff", font=("Segoe UI Semibold", 13)).grid(row=0, column=1, sticky="sw")
+        ttk.Label(status_card, textvariable=self.protection_detail, style="Body.TLabel").grid(row=1, column=1, sticky="nw", pady=(3, 0))
+
+        network_card = ttk.Frame(frame, style="Card.TFrame", padding=(22, 18))
+        network_card.grid(row=2, column=0, sticky="ew", pady=(0, 14))
+        network_card.columnconfigure(0, weight=1)
+        ttk.Label(network_card, text="NETWORK ADAPTER", style="CardTitle.TLabel").grid(row=0, column=0, sticky="w")
         self.adapter_box = ttk.Combobox(
-            frame, textvariable=self.adapter_name, state="readonly", width=45
+            network_card, textvariable=self.adapter_name, state="readonly", style="App.TCombobox"
         )
-        self.adapter_box.grid(row=1, column=0, sticky="ew", pady=(5, 8))
+        self.adapter_box.grid(row=1, column=0, sticky="ew", pady=(8, 15))
         self.adapter_box.bind("<<ComboboxSelected>>", self.on_adapter_selected)
-        self.refresh_button = ttk.Button(frame, text="Atualizar", command=self.refresh_adapters)
-        self.refresh_button.grid(row=1, column=1, padx=(10, 0), pady=(5, 8))
+        self.refresh_button = ttk.Button(network_card, text="Refresh", style="Secondary.TButton", command=self.refresh_adapters)
+        self.refresh_button.grid(row=1, column=1, padx=(10, 0), pady=(8, 15))
+        ttk.Label(network_card, text="CURRENT MAC", style="CardTitle.TLabel").grid(row=2, column=0, sticky="w")
+        ttk.Label(network_card, textvariable=self.current_value, style="Value.TLabel").grid(row=3, column=0, sticky="w", pady=(5, 0))
 
-        ttk.Label(frame, text="MAC atual").grid(row=2, column=0, sticky="w", pady=(7, 0))
-        ttk.Label(frame, textvariable=self.current_value, font=("Segoe UI", 11, "bold")).grid(
-            row=3, column=0, sticky="w", pady=(4, 12)
-        )
+        action_card = ttk.Frame(frame, style="Card.TFrame", padding=(22, 18))
+        action_card.grid(row=3, column=0, sticky="ew", pady=(0, 14))
+        action_card.columnconfigure(0, weight=1)
+        ttk.Label(action_card, text="NEW RANDOMIZED MAC", style="CardTitle.TLabel").grid(row=0, column=0, sticky="w")
+        self.mac_entry = ttk.Entry(action_card, textvariable=self.mac_value, style="App.TEntry")
+        self.mac_entry.grid(row=1, column=0, sticky="ew", pady=(8, 14))
+        self.generate_button = ttk.Button(action_card, text="Generate", style="Secondary.TButton", command=self.generate_mac)
+        self.generate_button.grid(row=1, column=1, padx=(10, 0), pady=(8, 14))
 
-        ttk.Label(frame, text="Novo MAC").grid(row=4, column=0, sticky="w")
-        self.mac_entry = ttk.Entry(frame, textvariable=self.mac_value, width=30)
-        self.mac_entry.grid(row=5, column=0, sticky="ew", pady=(5, 12))
-        self.generate_button = ttk.Button(frame, text="Gerar outro", command=self.generate_mac)
-        self.generate_button.grid(row=5, column=1, padx=(10, 0), pady=(5, 12))
-
-        button_frame = ttk.Frame(frame)
-        button_frame.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(8, 14))
-        self.change_button = ttk.Button(button_frame, text="Trocar MAC", command=self.change_mac)
+        button_frame = ttk.Frame(action_card, style="Card.TFrame")
+        button_frame.grid(row=2, column=0, columnspan=2, sticky="ew")
+        self.change_button = ttk.Button(button_frame, text="Activate Masking", style="Primary.TButton", command=self.change_mac)
         self.change_button.pack(side="left", fill="x", expand=True)
         self.restore_button = ttk.Button(
-            button_frame, text="Restaurar original", command=self.restore_mac
+            button_frame, text="Restore Original", style="Secondary.TButton", command=self.restore_mac
         )
         self.restore_button.pack(side="left", fill="x", expand=True, padx=(10, 0))
 
-        ttk.Separator(frame).grid(row=7, column=0, columnspan=2, sticky="ew", pady=(0, 12))
-        ttk.Label(frame, textvariable=self.status_value, wraplength=550).grid(
-            row=8, column=0, columnspan=2, sticky="w"
-        )
-        ttk.Label(
-            frame,
-            text="A conexao cai por alguns segundos somente quando voce clica em Trocar ou Restaurar.",
-            foreground="#666666",
-            wraplength=550,
-        ).grid(row=9, column=0, columnspan=2, sticky="w", pady=(16, 0))
+        footer = ttk.Frame(frame, style="App.TFrame")
+        footer.grid(row=4, column=0, sticky="ew")
+        ttk.Label(footer, textvariable=self.security_value, style="Subtitle.TLabel").pack(anchor="w")
+        ttk.Label(footer, textvariable=self.status_value, style="Subtitle.TLabel", wraplength=680).pack(anchor="w", pady=(5, 0))
 
-        frame.columnconfigure(0, weight=1)
+        try:
+            secure_state = masker_secure_state.load_state()
+            startup_label = "STARTUP ON" if secure_state.get("startup_enabled") else "STARTUP OFF"
+            self.security_value.set(f"AES-256-GCM  •  {startup_label}")
+        except Exception:
+            self.security_value.set("AES-256-GCM  •  STATE UNAVAILABLE")
         self.refresh_adapters()
 
     def set_busy(self, busy, message=None):
@@ -250,7 +288,26 @@ class MacChangerApp:
 
     def on_adapter_selected(self, _event=None):
         adapter = self.adapters.get(self.adapter_name.get(), {})
-        self.current_value.set(adapter.get("MacAddress") or "-")
+        current = adapter.get("MacAddress") or "-"
+        custom = adapter.get("CustomMac") or ""
+        self.current_value.set(current)
+        normalized_current = current.replace("-", "").replace(":", "").upper()
+        normalized_custom = custom.replace("-", "").replace(":", "").upper()
+        if normalized_custom and normalized_custom == normalized_current:
+            self.status_icon.itemconfigure(self.status_dot, fill="#38d27a")
+            self.status_icon.itemconfigure(self.status_check, text="✓", fill="#07130c")
+            self.protection_title.set("MASKING ACTIVE")
+            self.protection_detail.set(f"{self.adapter_name.get()} is using a randomized hardware address.")
+        elif normalized_custom:
+            self.status_icon.itemconfigure(self.status_dot, fill="#f4b942")
+            self.status_icon.itemconfigure(self.status_check, text="!", fill="#1b1200")
+            self.protection_title.set("RESTART REQUIRED")
+            self.protection_detail.set("A custom address is configured but is not currently active.")
+        else:
+            self.status_icon.itemconfigure(self.status_dot, fill="#68707c")
+            self.status_icon.itemconfigure(self.status_check, text="—", fill="#171a1f")
+            self.protection_title.set("MASKING INACTIVE")
+            self.protection_detail.set("The adapter is using its default hardware address.")
 
     def generate_mac(self):
         self.mac_value.set(amc_windows.format_mac(amc_windows.random_mac()))

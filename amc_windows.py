@@ -62,7 +62,24 @@ def run_powershell(script, capture=True):
 
 def get_adapters():
     script = r"""
-$items = Get-NetAdapter -ErrorAction Stop | Select-Object Name, InterfaceDescription, Status, MacAddress
+$classRoot = 'HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4D36E972-E325-11CE-BFC1-08002BE10318}'
+$items = Get-NetAdapter -ErrorAction Stop | ForEach-Object {
+    $adapter = $_
+    $guid = $adapter.InterfaceGuid.ToString()
+    $key = Get-ChildItem -LiteralPath $classRoot | Where-Object {
+        (Get-ItemProperty -LiteralPath $_.PSPath -Name NetCfgInstanceId -ErrorAction SilentlyContinue).NetCfgInstanceId -eq $guid
+    } | Select-Object -First 1
+    $customMac = if ($key) {
+        (Get-ItemProperty -LiteralPath $key.PSPath -Name NetworkAddress -ErrorAction SilentlyContinue).NetworkAddress
+    } else { $null }
+    [pscustomobject]@{
+        Name = $adapter.Name
+        InterfaceDescription = $adapter.InterfaceDescription
+        Status = $adapter.Status
+        MacAddress = $adapter.MacAddress
+        CustomMac = $customMac
+    }
+}
 $items | ConvertTo-Json -Compress
 """
     raw = run_powershell(script)
