@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.idea/
+venv/
+build/
+dist/
+masker_build*/
+MaskerApp*/
+*.tmp
+*.log
+
+# Local secrets/state must never be committed
+masker.key
+state.aes256
