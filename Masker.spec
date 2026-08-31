@@ -2,10 +2,10 @@
 
 
 a = Analysis(
-    ['C:/Users/luizg/OneDrive/Desktop/Automatic-MAC-Address-Changer-main/amc_windows_gui.pyw'],
+    ['amc_windows_gui.pyw'],
     pathex=[],
     binaries=[],
-    datas=[('C:/Users/luizg/OneDrive/Desktop/Automatic-MAC-Address-Changer-main/masker.ico', '.')],
+    datas=[('masker.ico', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -36,5 +36,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     uac_admin=True,
-    icon=['C:/Users/luizg/OneDrive/Desktop/Automatic-MAC-Address-Changer-main/masker.ico'],
+    icon=['masker.ico'],
 )
