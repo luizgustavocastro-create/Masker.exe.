@@ -159,6 +159,12 @@ Start-Sleep -Seconds 2
 
 def set_mac(interface, mac):
     current = run_powershell(adapter_registry_script(interface, "set", mac))
+    actual = current.replace("-", "").replace(":", "").strip().upper()
+    if actual != mac.upper():
+        raise RuntimeError(
+            f"O driver nao confirmou o MAC solicitado. Solicitado: {format_mac(mac)}; "
+            f"informado: {current or 'indisponivel'}. O adaptador pode nao suportar a troca."
+        )
     print(f"MAC solicitado: {format_mac(mac)}")
     print(f"MAC informado pelo Windows apos reiniciar: {current or 'indisponivel'}")
 

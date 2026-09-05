@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Graphical, manual-only Windows interface for amc_windows.py."""
+"""Windows MAC changer with selectable manual and startup modes."""
 
 import ctypes
 import datetime
 import os
+from pathlib import Path
+import shutil
 import subprocess
 import sys
 import threading
@@ -40,10 +42,20 @@ def relaunch_as_admin():
     return False
 
 
-def install_startup_task():
+def install_startup_task(interface="Wi-Fi"):
     if not getattr(sys, "frozen", False):
         raise RuntimeError("Instale a inicializacao usando a versao Masker.exe.")
-    executable = os.path.abspath(sys.executable)
+    # SYSTEM must only launch a copy stored in an administrator-protected folder.
+    install_dir = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Masker"
+    install_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run([
+        "icacls.exe", str(install_dir), "/inheritance:r", "/grant:r",
+        "*S-1-5-18:(OI)(CI)F", "*S-1-5-32-544:(OI)(CI)F",
+        "*S-1-5-32-545:(OI)(CI)RX",
+    ], capture_output=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+    executable = str(install_dir / "Masker.exe")
+    if os.path.normcase(os.path.abspath(sys.executable)) != os.path.normcase(executable):
+        shutil.copy2(sys.executable, executable)
     task_name = "Masker Randomize MAC at Startup"
     task_command = f'"{executable}" --startup-randomize'
     result = subprocess.run(
@@ -81,7 +93,7 @@ def install_startup_task():
     state = masker_secure_state.load_state()
     state.update(
         {
-            "adapter": "Wi-Fi",
+            "adapter": interface,
             "startup_enabled": True,
             "encryption": "AES-256-GCM",
             "installed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -90,12 +102,35 @@ def install_startup_task():
     masker_secure_state.save_state(state)
 
 
+def remove_startup_task():
+    # Persist the guard first: even a leftover task must not change the MAC.
+    state = masker_secure_state.load_state()
+    state["startup_enabled"] = False
+    masker_secure_state.save_state(state)
+    result = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+         "$ErrorActionPreference = 'Stop'; "
+         "Get-ScheduledTask | Where-Object { $_.TaskName -eq "
+         "'Masker Randomize MAC at Startup' -and $_.TaskPath -eq '\\' } | "
+         "Unregister-ScheduledTask -Confirm:$false"],
+        text=True, capture_output=True, check=False,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+    if result.returncode:
+        raise RuntimeError((result.stderr or result.stdout).strip())
+
+
 def startup_randomize():
     state = masker_secure_state.load_state()
+    if not state.get("startup_enabled", False):
+        return 0
     interface = state.get("adapter", "Wi-Fi")
     last_error = None
     for _attempt in range(18):
         try:
+            state = masker_secure_state.load_state()
+            if not state.get("startup_enabled", False):
+                return 0
             adapters = amc_windows.get_adapters()
             if any(item.get("Name") == interface for item in adapters):
                 mac = amc_windows.random_mac()
@@ -147,6 +182,7 @@ class MacChangerApp:
         self.protection_title = tk.StringVar(value="CHECKING STATUS")
         self.protection_detail = tk.StringVar(value="Reading network configuration...")
         self.security_value = tk.StringVar(value="AES-256-GCM  •  STARTUP CHECKING")
+        self.mode_value = tk.StringVar(value="Manual")
 
         shell = ctk.CTkFrame(root, fg_color="#090a0c", corner_radius=0)
         shell.pack(fill="both", expand=True)
@@ -229,6 +265,17 @@ class MacChangerApp:
         self.restore_button = ctk.CTkButton(button_frame, text="Restore original", height=46, corner_radius=11, fg_color="#252a32", hover_color="#343b45", font=ctk.CTkFont("Segoe UI", 11), command=self.restore_mac)
         self.restore_button.grid(row=0, column=1, sticky="ew", padx=(7, 0))
 
+        self.mode_box = ctk.CTkSegmentedButton(
+            control, values=["Manual", "Automatic at startup"],
+            variable=self.mode_value,
+        )
+        self.mode_box.grid(row=5, column=0, sticky="ew", padx=(22, 8), pady=(0, 12))
+        self.mode_button = ctk.CTkButton(control, text="Save mode", command=self.save_mode)
+        self.mode_button.grid(row=5, column=1, padx=(8, 22), pady=(0, 12))
+        ctk.CTkLabel(control, text="Automatic: new MAC at Windows startup. Manual: change whenever you choose.",
+                     wraplength=580, text_color="#9ba2ad").grid(
+                         row=6, column=0, columnspan=2, padx=22, pady=(0, 18), sticky="w")
+
         footer = ctk.CTkFrame(content, fg_color="transparent")
         footer.grid(row=4, column=0, sticky="ew", padx=34, pady=(0, 26))
         ctk.CTkLabel(footer, textvariable=self.security_value, text_color="#747b86", font=ctk.CTkFont("Segoe UI", 9, "bold")).pack(anchor="w")
@@ -236,11 +283,29 @@ class MacChangerApp:
 
         try:
             secure_state = masker_secure_state.load_state()
+            self.mode_value.set("Automatic at startup" if secure_state.get("startup_enabled") else "Manual")
+            self.adapter_name.set(secure_state.get("adapter", ""))
             startup_label = "STARTUP ON" if secure_state.get("startup_enabled") else "STARTUP OFF"
             self.security_value.set(f"AES-256-GCM  •  {startup_label}")
         except Exception:
             self.security_value.set("AES-256-GCM  •  STATE UNAVAILABLE")
         self.refresh_adapters()
+
+    def save_mode(self):
+        automatic = self.mode_value.get() == "Automatic at startup"
+        name = self.selected_adapter() if automatic else None
+        if automatic and not name:
+            return
+        def action():
+            if automatic:
+                install_startup_task(name)
+            else:
+                remove_startup_task()
+            label = "STARTUP ON" if automatic else "STARTUP OFF"
+            self.root.after(0, lambda: self.security_value.set(f"AES-256-GCM  •  {label}"))
+        self.run_background(action,
+            f"Automatic mode saved for {name}. A new MAC will be requested at Windows startup."
+            if automatic else "Manual mode saved. Startup changes are disabled; the current MAC is unchanged.")
 
     def set_busy(self, busy, message=None):
         state = "disabled" if busy else "normal"
@@ -248,6 +313,8 @@ class MacChangerApp:
         self.generate_button.configure(state=state)
         self.change_button.configure(state=state)
         self.restore_button.configure(state=state)
+        self.mode_button.configure(state=state)
+        self.mode_box.configure(state=state)
         self.adapter_box.configure(state="disabled" if busy else "normal")
         if message:
             self.status_value.set(message)
@@ -259,7 +326,7 @@ class MacChangerApp:
             try:
                 action()
             except Exception as error:
-                self.root.after(0, lambda: self.operation_failed(str(error)))
+                self.root.after(0, lambda detail=str(error): self.operation_failed(detail))
                 return
             self.root.after(0, lambda: self.operation_succeeded(success_message, refresh_after))
 
@@ -282,7 +349,7 @@ class MacChangerApp:
             try:
                 adapters = amc_windows.get_adapters()
             except Exception as error:
-                self.root.after(0, lambda: self.operation_failed(str(error)))
+                self.root.after(0, lambda detail=str(error): self.operation_failed(detail))
                 return
             self.root.after(0, lambda: self.load_adapters(adapters))
 
